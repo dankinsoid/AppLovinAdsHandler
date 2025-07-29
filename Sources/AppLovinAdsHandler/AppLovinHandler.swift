@@ -6,13 +6,12 @@ import UIKit
 /// AppLovin MAX SDK implementation of the SwiftAds `AdsHandler` protocol.
 ///
 /// This handler provides integration with AppLovin's MAX mediation platform,
-/// supporting banner, interstitial, and rewarded video ads.
+/// supporting banner, interstitial, and rewarded video ads with built-in retry logic.
 ///
-/// - Tip: For improved reliability, wrap this handler with `FibonacciRetryAdsHandler`:
+/// - Tip: For improved reliability, wrap this handler with `ExponentialRetryAdsHandler`:
 /// ```swift
 /// let appLovinHandler = AppLovinHandler(sdkKey: "your-sdk-key")
-/// let robustHandler = FibonacciRetryAdsHandler(wrapping: appLovinHandler)
-/// AdsSystem.bootstrap(robustHandler)
+/// AdsSystem.bootstrap(robustHandler.withExponentialRetry())
 /// ```
 public final class AppLovinHandler: AdsHandler {
 	private let sdkKey: String
