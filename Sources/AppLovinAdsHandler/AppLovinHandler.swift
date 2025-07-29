@@ -6,12 +6,13 @@ import UIKit
 /// AppLovin MAX SDK implementation of the SwiftAds `AdsHandler` protocol.
 ///
 /// This handler provides integration with AppLovin's MAX mediation platform,
-/// supporting banner, interstitial, and rewarded video ads with built-in retry logic.
+/// supporting banner, interstitial, and rewarded video ads.
 ///
-/// - Tip: For improved reliability, wrap this handler with `ExponentialRetryAdsHandler`:
+/// - Tip: For improved reliability, wrap this handler with `FibonacciRetryAdsHandler`:
 /// ```swift
 /// let appLovinHandler = AppLovinHandler(sdkKey: "your-sdk-key")
-/// AdsSystem.bootstrap(robustHandler.withExponentialRetry())
+/// let robustHandler = FibonacciRetryAdsHandler(wrapping: appLovinHandler)
+/// AdsSystem.bootstrap(robustHandler)
 /// ```
 public final class AppLovinHandler: AdsHandler {
 	private let sdkKey: String
@@ -207,26 +208,15 @@ public final class AppLovinHandler: AdsHandler {
 private extension AppLovinHandler {
 	final class Banner: MAAdView, MAAdViewAdDelegate {
 		var loadContinuation: CheckedContinuation<Banner, Error>?
-		var retryAttempt = 0.0
 
 		func didLoad(_: MAAd) {
-			retryAttempt = 0
 			loadContinuation?.resume(returning: self)
 			loadContinuation = nil
 		}
 
 		func didFailToLoadAd(forAdUnitIdentifier _: String, withError error: MAError) {
-			guard retryAttempt < 6 else {
-				retryAttempt = 0
-				loadContinuation?.resume(throwing: AppLovinError(error: error))
-				loadContinuation = nil
-				return
-			}
-			retryAttempt += 1
-			let delaySec = pow(2.0, retryAttempt)
-			DispatchQueue.main.asyncAfter(deadline: .now() + delaySec) {
-				self.loadAd()
-			}
+			loadContinuation?.resume(throwing: AppLovinError(error: error))
+			loadContinuation = nil
 		}
 
 		func didExpand(_: MAAd) {}
@@ -248,26 +238,15 @@ private extension AppLovinHandler {
 		var loadContinuation: CheckedContinuation<Void, Error>?
 		var showContinuation: CheckedContinuation<Void, Error>?
 		var loadTask: Task<Void, Error>?
-		var retryAttempt = 0.0
 
 		func didLoad(_: MAAd) {
-			retryAttempt = 0
 			loadContinuation?.resume()
 			loadContinuation = nil
 		}
 
 		func didFailToLoadAd(forAdUnitIdentifier _: String, withError error: MAError) {
-			guard retryAttempt < 6 else {
-				retryAttempt = 0
-				loadContinuation?.resume(throwing: AppLovinError(error: error))
-				loadContinuation = nil
-				return
-			}
-			retryAttempt += 1
-			let delaySec = pow(2.0, retryAttempt)
-			DispatchQueue.main.asyncAfter(deadline: .now() + delaySec) {
-				self.load()
-			}
+			loadContinuation?.resume(throwing: AppLovinError(error: error))
+			loadContinuation = nil
 		}
 
 		func didDisplay(_: MAAd) {}
@@ -293,7 +272,6 @@ private extension AppLovinHandler {
 		var loadContinuation: CheckedContinuation<Void, Error>?
 		var showContinuation: CheckedContinuation<Void, Error>?
 		var loadTask: Task<Void, Error>?
-		var retryAttempt = 0.0
 		var video: MARewardedAd
 
 		init(video: MARewardedAd) {
@@ -303,23 +281,13 @@ private extension AppLovinHandler {
 		}
 
 		func didLoad(_: MAAd) {
-			retryAttempt = 0
 			loadContinuation?.resume()
 			loadContinuation = nil
 		}
 
 		func didFailToLoadAd(forAdUnitIdentifier _: String, withError error: MAError) {
-			guard retryAttempt < 6 else {
-				retryAttempt = 0
-				loadContinuation?.resume(throwing: AppLovinError(error: error))
-				loadContinuation = nil
-				return
-			}
-			retryAttempt += 1
-			let delaySec = pow(2.0, retryAttempt)
-			DispatchQueue.main.asyncAfter(deadline: .now() + delaySec) { [video] in
-				video.load()
-			}
+			loadContinuation?.resume(throwing: AppLovinError(error: error))
+			loadContinuation = nil
 		}
 
 		func didDisplay(_: MAAd) {}
