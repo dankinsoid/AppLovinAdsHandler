@@ -95,26 +95,35 @@ public final class AppLovinHandler: AdsHandler {
 		placement: String?
 	) async throws -> UIView {
 		try await initAds()
-		let view = Banner(adUnitIdentifier: id)
+        let configs: MAAdViewConfiguration
+        
+        switch size {
+        case .standart, .medium, .large:
+            configs = MAAdViewConfiguration { _ in }
+        case .adaptive:
+            configs = MAAdViewConfiguration { builder in
+                builder.adaptiveType = .anchored
+                builder.adaptiveWidth = UIScreen.main.bounds.width
+            }
+        case let .custom(width, _):
+            configs = MAAdViewConfiguration { builder in
+                builder.adaptiveType = .anchored
+                builder.adaptiveWidth = width
+            }
+        }
+        
+        let view = Banner(adUnitIdentifier: id, configuration: configs)
 		view.delegate = view
 		view.placement = placement
+        view.backgroundColor = .clear
 		switch size {
-		case .standart:
-			break
-		case .medium:
-			break
-		case .large:
+		case .standart, .medium, .large:
 			break
 		case .adaptive:
-			view.setExtraParameterForKey("adaptive_banner", value: "true")
-			view.setLocalExtraParameterForKey("adaptive_banner_width", value: UIScreen.main.bounds.width)
 			if let size = view.adFormat?.adaptiveSize {
 				view.frame.size = size
 			}
 		case let .custom(width, height):
-			view.setExtraParameterForKey("adaptive_banner", value: "true")
-			view.setLocalExtraParameterForKey("adaptive_banner_width", value: width)
-			view.setLocalExtraParameterForKey("adaptive_banner_height", value: height)
 			view.frame.size = CGSize(width: width, height: height)
 		}
 		return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Banner, Error>) in
@@ -205,26 +214,31 @@ public final class AppLovinHandler: AdsHandler {
 }
 
 private extension AppLovinHandler {
-	final class Banner: MAAdView, MAAdViewAdDelegate {
-		var loadContinuation: CheckedContinuation<Banner, Error>?
-
-		func didLoad(_: MAAd) {
-			loadContinuation?.resume(returning: self)
-			loadContinuation = nil
-		}
-
-		func didFailToLoadAd(forAdUnitIdentifier _: String, withError error: MAError) {
-			loadContinuation?.resume(throwing: AppLovinError(error: error))
-			loadContinuation = nil
-		}
-
-		func didExpand(_: MAAd) {}
-		func didCollapse(_: MAAd) {}
-		func didDisplay(_: MAAd) {}
-		func didHide(_: MAAd) {}
-		func didClick(_: MAAd) {}
-		func didFail(toDisplay _: MAAd, withError _: MAError) {}
-	}
+    final class Banner: MAAdView, MAAdViewAdDelegate {
+        var loadContinuation: CheckedContinuation<Banner, Error>?
+        
+        init(adUnitIdentifier: String, configuration: MAAdViewConfiguration) {
+            super.init(adUnitIdentifier: adUnitIdentifier, configuration: configuration)
+            self.delegate = self
+        }
+        
+        func didLoad(_: MAAd) {
+            loadContinuation?.resume(returning: self)
+            loadContinuation = nil
+        }
+        
+        func didFailToLoadAd(forAdUnitIdentifier _: String, withError error: MAError) {
+            loadContinuation?.resume(throwing: AppLovinError(error: error))
+            loadContinuation = nil
+        }
+        
+        func didExpand(_: MAAd) {}
+        func didCollapse(_: MAAd) {}
+        func didDisplay(_: MAAd) {}
+        func didHide(_: MAAd) {}
+        func didClick(_: MAAd) {}
+        func didFail(toDisplay _: MAAd, withError _: MAError) {}
+    }
 }
 
 private struct AppLovinError: LocalizedError {
