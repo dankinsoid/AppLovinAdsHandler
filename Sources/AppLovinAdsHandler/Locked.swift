@@ -2,19 +2,25 @@ import Foundation
 
 @propertyWrapper
 internal final class Locked<Value> {
-    private let lock = NSLock()
     private var value: Value
 
     internal var wrappedValue: Value {
         get {
-            lock.lock()
-            defer { lock.unlock() }
-            return value
+            if Thread.isMainThread {
+                return value
+            }
+            return DispatchQueue.main.sync {
+                value
+            }
         }
         set {
-            lock.lock()
-            defer { lock.unlock() }
-            value = newValue
+            if Thread.isMainThread {
+                value = newValue
+            } else {
+                DispatchQueue.main.async {
+                    self.value = newValue
+                }
+            }
         }
     }
 
